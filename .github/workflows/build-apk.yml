@@ -1,0 +1,60 @@
+
+name: Build APK Uangku
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract project ZIP
+        run: |
+          unzip -q uangku_offline_final.zip -d source
+          test -f source/uangku_offline/pubspec.yaml
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android project
+        working-directory: source/uangku_offline
+        run: flutter create --platforms=android --org id.uangku --project-name uangku_offline .
+
+      - name: Set app name
+        working-directory: source/uangku_offline
+        run: sed -i 's/android:label="[^"]*"/android:label="Uangku"/' android/app/src/main/AndroidManifest.xml
+
+      - name: Install dependencies
+        working-directory: source/uangku_offline
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: source/uangku_offline
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: uangku-apk
+          path: source/uangku_offline/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
